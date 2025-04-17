@@ -8,7 +8,9 @@ export class FileSystemDataSource implements LogDataSource {
     private readonly mediumLogsPath = 'logs/logs-medium.log'
     private readonly highLogsPath   = 'logs/logs-high.log'
 
-    constructor() {}
+    constructor() {
+        this.createLogsFiles()
+    }
 
     private createLogsFiles = () => {
         if (!fs.existsSync(this.logPath)) {
@@ -32,12 +34,42 @@ export class FileSystemDataSource implements LogDataSource {
         // fs.writeFileSync(this.highLogsPath, '')
     }
 
-    saveLog(log: LogEntity): Promise<void> {
-        throw new Error("Method not implemented.")
+    async saveLog(newLog: LogEntity): Promise<void> {
+        const logAsJson = `${JSON.stringify(newLog)}\n`
+        fs.appendFileSync(this.allLogsPath, logAsJson)
+
+        if (newLog.level === LogServerityLevel.low)
+            return;
+
+        if (newLog.level === LogServerityLevel.medium) {
+            fs.appendFileSync(this.mediumLogsPath, logAsJson)
+        } else {
+            fs.appendFileSync(this.highLogsPath, logAsJson)
+        }
     }
 
-    getLogs(severityLevel: LogServerityLevel): Promise<LogEntity[]> {
-        throw new Error("Method not implemented.");
+    private getLogsFromFile = (path: string): LogEntity[] => {
+        const content = fs.readFileSync(path, 'utf-8')
+        // return logs.split('\n').filter(log => log !== '')
+        const logs = content.split('\n').map(log => LogEntity.fromJson(log))
+        return logs
+    }
+    
+    async getLogs(severityLevel: LogServerityLevel): Promise<LogEntity[]> {
+        
+        switch (severityLevel) {
+            case LogServerityLevel.low:
+                return this.getLogsFromFile(this.allLogsPath)
+            
+            case LogServerityLevel.medium:
+                return this.getLogsFromFile(this.mediumLogsPath)
+            
+            case LogServerityLevel.high:
+                return this.getLogsFromFile(this.highLogsPath)
+            
+            default:
+                throw new Error(`Invalid severity level: ${severityLevel}`)
+        }
     }
 
 
